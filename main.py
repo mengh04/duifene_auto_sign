@@ -7,6 +7,7 @@ from tkinter import messagebox, ttk
 import requests
 import urllib3
 from bs4 import BeautifulSoup
+import random
 
 
 class Course:
@@ -18,7 +19,6 @@ class Course:
 
 
 def on_combo_change(event):
-    print(event)
     className = combo_var.get()
     for i in Course.class_list:
         if i["CourseName"] == className:
@@ -68,7 +68,6 @@ def login():
 
 
 def select_tab(event):
-    print(event)
     tab_id = tab_control.index(tab_control.select())
     text_box.delete("1.0", "end")
     if tab_id == 0:
@@ -121,6 +120,24 @@ def sign(sign_code):
             return True
 
 
+def sign_location(longitude, latitude):
+    longitude = str(round(float(longitude) + random.uniform(-0.000089, 0.000089), 8))
+    latitude = str(round(float(latitude) + random.uniform(-0.000089, 0.000089), 8))
+
+    headers = {
+        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        "Referer": "https://www.duifene.com/_CheckIn/MB/CheckInStudent.aspx?moduleid=16&pasd="
+    }
+    params = f"action=signin&sid={get_user_id()}&longitude={longitude}&latitude={latitude}"
+    _r = x.post(
+        url=host + "/_CheckIn/CheckInRoomHandler.ashx", data=params, headers=headers)
+    if _r.status_code == 200:
+        msg = _r.json()["msgbox"]
+        text_box.insert(tk.END, f"\t{msg}\n\n")
+        if msg == "签到成功！":
+            return True
+
+
 def watching_sign():
     is_login()
 
@@ -133,10 +150,10 @@ def watching_sign():
     _r = x.get(url=host + f"/_CheckIn/MB/TeachCheckIn.aspx?classid={Course.class_id}&temps=0&checktype=1&isrefresh=0"
                           f"&timeinterval=0&roomid=0&match=")
     if _r.status_code == 200:
-        if "HFCheckCodeKey" in _r.text:
+        if "HFChecktype" in _r.text:
             status = False
             soup = BeautifulSoup(_r.text, "lxml")
-            sign_code = soup.find(id="HFCheckCodeKey").get("value")
+            
             HFSeconds = soup.find(id="HFSeconds").get("value")
             HFChecktype = soup.find(id="HFChecktype").get("value")
             HFCheckInID = soup.find(id="HFCheckInID").get("value")
@@ -145,18 +162,28 @@ def watching_sign():
                 if HFCheckInID not in Course.check_list:
                     # 数字签到
                     if HFChecktype == '1':
+                        sign_code = soup.find(id="HFCheckCodeKey").get("value")
                         if sign_code is not None and int(HFSeconds) <= int(seconds_entry.get()):
                             text_box.insert(tk.END, f"\n\n{current_time} 签到ID：{HFCheckInID} 开始签到\t签到码：{sign_code}")
                             status = sign(sign_code)
                         else:
-                            text_box.insert(tk.END, f"\t未到签到时间\t倒计时：{HFSeconds}秒\t签到码：{sign_code}")
+                            text_box.insert(tk.END, f"\t签到码签到\t未到签到时间\t倒计时：{HFSeconds}秒\t签到码：{sign_code}")
                     # 二维码签到
                     elif HFChecktype == '2':
                         if HFCheckInID is not None and int(HFSeconds) <= int(seconds_entry.get()):
                             text_box.insert(tk.END, f"\n\n{current_time} 签到ID：{HFCheckInID} 开始签到\t二维码签到")
                             status = sign(HFCheckInID)
                         else:
-                            text_box.insert(tk.END, f"\t未到签到时间\t倒计时：{HFSeconds}秒")
+                            text_box.insert(tk.END, f"\t二维码签到\t未到签到时间\t倒计时：{HFSeconds}秒")
+                    # 定位签到
+                    elif HFChecktype == '3':
+                        HFRoomLongitude = soup.find(id="HFRoomLongitude").get("value")
+                        HFRoomLatitude = soup.find(id="HFRoomLatitude").get("value")
+                        if HFRoomLongitude is not None and HFRoomLatitude is not None and int(HFSeconds) <= int(seconds_entry.get()):
+                            text_box.insert(tk.END, f"\n\n{current_time} 签到ID：{HFCheckInID} 开始签到\t定位签到")
+                            status = sign_location(HFRoomLongitude, HFRoomLatitude)
+                        else:
+                            text_box.insert(tk.END, f"\t定位签到\t未到签到时间\t倒计时：{HFSeconds}秒")
                     if status:
                         Course.check_list.append(HFCheckInID)
             else:
