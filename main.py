@@ -68,7 +68,6 @@ def login():
 
 
 def select_tab(event):
-    print(event)
     tab_id = tab_control.index(tab_control.select())
     text_box.delete("1.0", "end")
     if tab_id == 0:
@@ -122,8 +121,9 @@ def sign(sign_code):
 
 
 def sign_location(longitude, latitude):
-    longitude = str(round(float(longitude) + random.uniform(-10, 10), 8))
-    latitude = str(round(float(latitude) + random.uniform(-10, 10), 8))
+    longitude = str(round(float(longitude) + random.uniform(-0.000089, 0.000089), 8))
+    latitude = str(round(float(latitude) + random.uniform(-0.000089, 0.000089), 8))
+
     headers = {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         "Referer": "https://www.duifene.com/_CheckIn/MB/CheckInStudent.aspx?moduleid=16&pasd="
