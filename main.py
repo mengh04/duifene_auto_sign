@@ -47,24 +47,24 @@ def login_link():
         messagebox.showerror("error", "链接有误")
 
 
-def login():
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-        "Referer": "https://www.duifene.com/AppGate.aspx"
-    }
-    params = f'action=loginmb&loginname={username.get()}&password={password.get()}'
-    x.cookies.clear()
-    x.get(host)
-    _r = x.post(url=host + "/AppCode/LoginInfo.ashx", data=params, headers=headers)
-    if _r.status_code == 200:
-        text_box.delete("1.0", "end")
-        msg = _r.json()["msgbox"]
-        text_box.insert(tk.END, f"\n{msg}\n")
-        if msg == "登录成功":
-            get_class_list()
-            save_cookie(_r)
-    else:
-        messagebox.showerror("错误提示", "登录失败")
+# def login():
+#     headers = {
+#         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+#         "Referer": "https://www.duifene.com/AppGate.aspx"
+#     }
+#     params = f'action=loginmb&loginname={username.get()}&password={password.get()}'
+#     x.cookies.clear()
+#     x.get(host)
+#     _r = x.post(url=host + "/AppCode/LoginInfo.ashx", data=params, headers=headers)
+#     if _r.status_code == 200:
+#         text_box.delete("1.0", "end")
+#         msg = _r.json()["msgbox"]
+#         text_box.insert(tk.END, f"\n{msg}\n")
+#         if msg == "登录成功":
+#             get_class_list()
+#             save_cookie(_r)
+#     else:
+#         messagebox.showerror("错误提示", "登录失败")
 
 
 def select_tab(event):
@@ -137,6 +137,25 @@ def sign_location(longitude, latitude):
         if msg == "签到成功！":
             return True
 
+def get_arrival_count(ciid):
+
+    ajax_url = "https://www.duifene.com/_CheckIn/MBCount.ashx"  # 替换成实际URL
+    params = {
+        "action": "getcheckintotalbyciid",
+        "ciid": ciid,
+        "t": "cking"
+    }
+
+    response = x.get(ajax_url, params=params)
+    data = response.json()
+    arrival_count = data["TotalNumber"] - data["AbsenceNumber"]
+    total_count = data["TotalNumber"]
+    print(int(signed_percent.get()) / 100)
+    if (arrival_count / total_count) >= (int(signed_percent.get()) / 100):
+        return True, arrival_count
+    else:
+        return False, arrival_count
+
 
 def watching_sign():
     is_login()
@@ -153,37 +172,41 @@ def watching_sign():
         if "HFChecktype" in _r.text:
             status = False
             soup = BeautifulSoup(_r.text, "lxml")
-            
             HFSeconds = soup.find(id="HFSeconds").get("value")
             HFChecktype = soup.find(id="HFChecktype").get("value")
             HFCheckInID = soup.find(id="HFCheckInID").get("value")
             HFClassID = soup.find(id="HFClassID").get("value")
+            signable, signed_count = get_arrival_count(HFCheckInID)
+            print(signable, signed_count)
             if Course.class_id in HFClassID:
                 if HFCheckInID not in Course.check_list:
                     # 数字签到
                     if HFChecktype == '1':
                         sign_code = soup.find(id="HFCheckCodeKey").get("value")
-                        if sign_code is not None and int(HFSeconds) <= int(seconds_entry.get()):
+                        # if sign_code is not None and int(HFSeconds) <= int(seconds_entry.get()):
+                        if signable:
                             text_box.insert(tk.END, f"\n\n{current_time} 签到ID：{HFCheckInID} 开始签到\t签到码：{sign_code}")
                             status = sign(sign_code)
                         else:
-                            text_box.insert(tk.END, f"\t签到码签到\t未到签到时间\t倒计时：{HFSeconds}秒\t签到码：{sign_code}")
+                            text_box.insert(tk.END, f"\t签到码签到\t倒计时：{HFSeconds}秒\t已签到人数：{signed_count}人\t签到码：{sign_code}")
                     # 二维码签到
                     elif HFChecktype == '2':
-                        if HFCheckInID is not None and int(HFSeconds) <= int(seconds_entry.get()):
+                        # if HFCheckInID is not None and int(HFSeconds) <= int(seconds_entry.get()):
+                        if signable:
                             text_box.insert(tk.END, f"\n\n{current_time} 签到ID：{HFCheckInID} 开始签到\t二维码签到")
                             status = sign(HFCheckInID)
                         else:
-                            text_box.insert(tk.END, f"\t二维码签到\t未到签到时间\t倒计时：{HFSeconds}秒")
+                            text_box.insert(tk.END, f"\t二维码签到\t倒计时：{HFSeconds}秒\t已签到人数：{signed_count}人")
                     # 定位签到
                     elif HFChecktype == '3':
                         HFRoomLongitude = soup.find(id="HFRoomLongitude").get("value")
                         HFRoomLatitude = soup.find(id="HFRoomLatitude").get("value")
-                        if HFRoomLongitude is not None and HFRoomLatitude is not None and int(HFSeconds) <= int(seconds_entry.get()):
+                        # if HFRoomLongitude is not None and HFRoomLatitude is not None and int(HFSeconds) <= int(seconds_entry.get()):
+                        if HFRoomLongitude and HFRoomLatitude and signable:
                             text_box.insert(tk.END, f"\n\n{current_time} 签到ID：{HFCheckInID} 开始签到\t定位签到")
                             status = sign_location(HFRoomLongitude, HFRoomLatitude)
                         else:
-                            text_box.insert(tk.END, f"\t定位签到\t未到签到时间\t倒计时：{HFSeconds}秒")
+                            text_box.insert(tk.END, f"\t定位签到\t倒计时：{HFSeconds}秒\t已签到人数：{signed_count}人")
                     if status:
                         Course.check_list.append(HFCheckInID)
             else:
@@ -258,6 +281,9 @@ def init():
             config['INFO'] = {
                 'cookie': '1=1'
             }
+            config['SETTING'] = {
+                'signed_percent' : '50'
+            }
             with open(filename, 'w') as configfile:
                 config.write(configfile)
             x.get(host)
@@ -278,6 +304,12 @@ def init():
         messagebox.showwarning("网络状态", "未检测到互联网连接，请检查你的网络设置。")
         root.destroy()
 
+def save_setting():
+    config['SETTING'] = {
+        "signed_percent" : signed_percent.get()
+    }
+    with open(filename, 'w') as configfile:
+        config.write(configfile)
 
 if __name__ == '__main__':
     host = "https://www.duifene.com"
@@ -291,10 +323,12 @@ if __name__ == '__main__':
     filename = 'duifenyi.ini'
     config = configparser.ConfigParser()
 
+    init()
+
     # 创建UI
     root = tk.Tk()
     # 标题
-    root.title("2024.9.18")
+    root.title("对分易自动签到")
     # 禁用窗口的调整大小
     root.resizable(False, False)
 
@@ -304,7 +338,7 @@ if __name__ == '__main__':
     tab2 = ttk.Frame(tab_control)
     # 添加选项卡
     tab_control.add(tab1, text="微信链接登录")
-    tab_control.add(tab2, text="账号密码登录")
+    tab_control.add(tab2, text="设置")
     # 当选项卡被选中时，调用select_tab函数
     tab_control.bind("<<NotebookTabChanged>>", select_tab)
     tab_control.pack(fill=tk.BOTH, side=tk.LEFT)
@@ -318,20 +352,20 @@ if __name__ == '__main__':
     link_entry.pack(pady=5, padx=10)
     tk.Button(tab_frame1, text="登录", command=login_link, font=('宋体', 14)).pack(pady=5)
 
-    # tab选项卡中的内容_密码登录
+    # # tab选项卡中的内容_密码登录
     tab_frame2 = tk.Frame(tab_control)
-    tk.Label(tab_frame2, text="不支持二维码签到", font=('宋体', 10)).pack(padx=5)
-    tk.Label(tab_frame2, text="账号", font=('宋体', 14)).pack(padx=10)
-    username = tk.Entry(tab_frame2, font=('宋体', 12))
-    username.pack(padx=10)
-    tk.Label(tab_frame2, text="密码", font=('宋体', 14)).pack(padx=10)
-    password = tk.Entry(tab_frame2, show="*", font=('宋体', 12))
-    password.pack(padx=10)
-    tk.Label(tab_frame2, text="剩余倒计时X秒后签到", font=('宋体', 10)).pack(pady=5)
-    seconds_entry = tk.Entry(tab_frame2, font=('宋体', 12), width=5)
-    seconds_entry.insert(0, "10")
-    seconds_entry.pack(pady=5)
-    tk.Button(tab_frame2, text="登录", command=login, font=('宋体', 14)).pack(pady=5)
+    # tk.Label(tab_frame2, text="不支持二维码签到", font=('宋体', 10)).pack(padx=5)
+    # tk.Label(tab_frame2, text="账号", font=('宋体', 14)).pack(padx=10)
+    # username = tk.Entry(tab_frame2, font=('宋体', 12))
+    # username.pack(padx=10)
+    # tk.Label(tab_frame2, text="密码", font=('宋体', 14)).pack(padx=10)
+    # password = tk.Entry(tab_frame2, show="*", font=('宋体', 12))
+    # password.pack(padx=10)
+    tk.Label(tab_frame2, text="已签到人数达到总人数的X%时签到", font=('宋体', 10)).pack(pady=5)
+    signed_percent = tk.Entry(tab_frame2, font=('宋体', 12), width=5)
+    signed_percent.insert(0, config['SETTING']['signed_percent'])
+    signed_percent.pack(pady=5)
+    tk.Button(tab_frame2, text="保存", command=save_setting, font=('宋体', 14)).pack(pady=5)
 
     # 右边frame_选择课程
     frame_mid = tk.Frame(root)
@@ -351,5 +385,5 @@ if __name__ == '__main__':
     text_box.pack(pady=(0, 10), padx=(0, 10))
 
     # 初始化
-    init()
+
     root.mainloop()
