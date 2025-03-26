@@ -150,7 +150,7 @@ def get_arrival_count(ciid):
     data = response.json()
     arrival_count = data["TotalNumber"] - data["AbsenceNumber"]
     total_count = data["TotalNumber"]
-    print(int(signed_percent.get()) / 100)
+    # print(int(signed_percent.get()) / 100)
     if (arrival_count / total_count) >= (int(signed_percent.get()) / 100):
         return True, arrival_count
     else:
@@ -177,7 +177,7 @@ def watching_sign():
             HFCheckInID = soup.find(id="HFCheckInID").get("value")
             HFClassID = soup.find(id="HFClassID").get("value")
             signable, signed_count = get_arrival_count(HFCheckInID)
-            print(signable, signed_count)
+            # print(signable, signed_count)
             if Course.class_id in HFClassID:
                 if HFCheckInID not in Course.check_list:
                     # 数字签到
