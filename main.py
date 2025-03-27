@@ -8,6 +8,11 @@ import requests
 import urllib3
 from bs4 import BeautifulSoup
 import random
+import time
+import pyautogui
+import pyperclip
+import win32con
+import win32gui
 
 
 class Course:
@@ -17,6 +22,46 @@ class Course:
     check_list = []
     class_list = []
 
+def autoLogin():
+    screen_size = pyautogui.size()
+    w, h = screen_size.width, screen_size.height
+    goal_w, goal_h = 2560, 1440
+    deltaX, deltaY = w / goal_w, h / goal_h
+
+    hwnd = win32gui.FindWindow('WeChatMainWndForPC', '微信')
+
+    msg = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx1b5650884f657981&redirect_uri=https://www.duifene.com/_FileManage/PdfView.aspx?file=https%3A%2F%2Ffs.duifene.com%2Fres%2Fr2%2Fu6106199%2F%E5%AF%B9%E5%88%86%E6%98%93%E7%99%BB%E5%BD%95_876c9d439ca68ead389c.pdf&response_type=code&scope=snsapi_userinfo&connect_redirect=1#wechat_redirect'
+    pyperclip.copy(msg)
+    win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+
+    x1, y1 = 30, 1240
+    x2, y2 = 420, 25
+    x3, y3 = 2425, 0
+    x4, y4 = 2425, 210
+
+    pyautogui.click(x1 * deltaX, y1 * deltaY, button='left')
+    time.sleep(2)
+
+    timer = 5
+    while timer > 0:
+        pyautogui.keyDown('ctrl')
+        pyautogui.keyDown('w')
+        pyautogui.keyUp('w')
+        pyautogui.keyUp('ctrl')
+        timer -= 1
+
+    pyautogui.click(x1 * deltaX, y1 * deltaY, button='left')
+    time.sleep(2)
+    pyautogui.click(x2 * deltaX, y2 * deltaY, button='left')
+    pyautogui.keyDown('ctrl')
+    pyautogui.keyDown('v')
+    pyautogui.keyUp('v')
+    pyautogui.keyUp('ctrl')
+    pyautogui.keyDown('enter')
+    pyautogui.keyUp('enter')
+    time.sleep(2)
+    pyautogui.click(x3 * deltaX, y3 * deltaY, button='left')
+    pyautogui.click(x4 * deltaX, y4 * deltaY, button='left')
 
 def on_combo_change(event):
     className = combo_var.get()
