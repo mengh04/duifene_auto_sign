@@ -13,6 +13,12 @@ import pyautogui
 import pyperclip
 import win32con
 import win32gui
+from wxauto import WeChat
+import pandas.io.clipboard as cb
+from pywinauto.application import Application
+from pywinauto import findwindows
+import pyautogui
+
 
 
 class Course:
@@ -22,46 +28,59 @@ class Course:
     check_list = []
     class_list = []
 
+def get_pid(process_name) -> int | None:
+    handles = findwindows.find_elements()
+    for handle in handles:
+        if handle.class_name == process_name:
+            return handle.process_id
+    return None
+
 def autoLogin():
-    screen_size = pyautogui.size()
-    w, h = screen_size.width, screen_size.height
-    goal_w, goal_h = 2560, 1440
-    deltaX, deltaY = w / goal_w, h / goal_h
-
-    hwnd = win32gui.FindWindow('WeChatMainWndForPC', '微信')
-
+    wx = WeChat()
+    process1 = 'WeChatMainWndForPC'
+    process2 = 'Chrome_WidgetWin_0'
     msg = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx1b5650884f657981&redirect_uri=https://www.duifene.com/_FileManage/PdfView.aspx?file=https%3A%2F%2Ffs.duifene.com%2Fres%2Fr2%2Fu6106199%2F%E5%AF%B9%E5%88%86%E6%98%93%E7%99%BB%E5%BD%95_876c9d439ca68ead389c.pdf&response_type=code&scope=snsapi_userinfo&connect_redirect=1#wechat_redirect'
     pyperclip.copy(msg)
-    win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
 
-    x1, y1 = 30, 1240
-    x2, y2 = 420, 25
-    x3, y3 = 2425, 0
-    x4, y4 = 2425, 210
-
-    pyautogui.click(x1 * deltaX, y1 * deltaY, button='left')
-    time.sleep(2)
-
-    timer = 5
-    while timer > 0:
-        pyautogui.keyDown('ctrl')
-        pyautogui.keyDown('w')
-        pyautogui.keyUp('w')
-        pyautogui.keyUp('ctrl')
-        timer -= 1
-
-    pyautogui.click(x1 * deltaX, y1 * deltaY, button='left')
-    time.sleep(2)
-    pyautogui.click(x2 * deltaX, y2 * deltaY, button='left')
+    id1 = get_pid(process1)
+    app = Application(backend='uia').connect(process=id1)
+    win_main_Dialog = app.window(class_name='WeChatMainWndForPC')
+    # win_main_Dialog.draw_outline(colour='red')
+    # win_main_Dialog.print_control_identifiers(depth=None, filename=None)
+    text_control = win_main_Dialog.child_window(title="搜索", control_type="Edit")
+    text_control.wait('visible')
+    text_control.click_input()
     pyautogui.keyDown('ctrl')
     pyautogui.keyDown('v')
     pyautogui.keyUp('v')
     pyautogui.keyUp('ctrl')
-    pyautogui.keyDown('enter')
-    pyautogui.keyUp('enter')
-    time.sleep(2)
-    pyautogui.click(x3 * deltaX, y3 * deltaY, button='left')
-    pyautogui.click(x4 * deltaX, y4 * deltaY, button='left')
+    time.sleep(1)
+    text_control = win_main_Dialog.child_window(title="文章、公众号、视频号等", control_type="Text")
+    text_control.wait('visible')
+    text_control.click_input()
+
+    id2 = get_pid(process2)
+    app = Application(backend='uia').connect(process=id2)
+    win_main_Dialog = app.window(class_name=process2)
+    # win_main_Dialog.print_control_identifiers(depth=None, filename=None)
+    access_web_text = win_main_Dialog.child_window(title="访问网页", control_type="Text")
+    access_web_text.wait('visible')
+    access_web_text.click_input()
+
+    menu_item = win_main_Dialog.child_window(title="更多", control_type="MenuItem")
+    menu_item.click_input()
+    menu_item = win_main_Dialog.child_window(title="复制链接", control_type="MenuItem")
+    menu_item.click_input()
+
+    for _ in range(2):
+        pyautogui.keyDown('alt')
+        pyautogui.keyDown('f4')
+        pyautogui.keyUp('f4')
+        pyautogui.keyUp('alt')
+
+    link_entry.insert(0, cb.paste())
+    login_link()
+
 
 def on_combo_change(event):
     className = combo_var.get()
@@ -69,14 +88,6 @@ def on_combo_change(event):
         if i["CourseName"] == className:
             Course.id = i["CourseID"]
             Course.class_id = i["TClassID"]
-
-
-def save_cookie(_x):
-    config['INFO'] = {
-        'cookie': _x.request.headers.get("cookie")
-    }
-    with open(filename, 'w') as f:
-        config.write(f)
 
 
 def login_link():
@@ -87,7 +98,6 @@ def login_link():
         code = code[0]
         _r = x.get(url=host + f"/P.aspx?authtype=1&code={code}&state=1")
         get_class_list()
-        save_cookie(_r)
     else:
         messagebox.showerror("error", "链接有误")
 
@@ -293,7 +303,6 @@ def get_class_list():
                 messagebox.showerror("", f"{msg} 请重新登录。")
                 x.cookies.clear()
             except Exception as e:
-                messagebox.showinfo("提示", "登录成功")
                 class_name_list = []
                 for i in _json:
                     class_name_list.append(i["CourseName"])
@@ -319,42 +328,21 @@ def is_login():
             Course.flag = False
             return False
 
-
-def init():
-    try:
-        if not os.path.exists(filename):
-            config['INFO'] = {
-                'cookie': '1=1'
-            }
-            config['SETTING'] = {
-                'signed_percent' : '50'
-            }
-            with open(filename, 'w') as configfile:
-                config.write(configfile)
-            x.get(host)
-        else:
-            try:
-                config.read(filename)
-                cookie = config.get('INFO', 'cookie')
-                cookies = {}
-                for pair in cookie.split('; '):
-                    key, value = pair.split('=')
-                    cookies[key] = value
-                x.cookies.update(cookies)
-                get_class_list()
-            except Exception as e:
-                pass
-    except (requests.ConnectionError, requests.Timeout):
-        # 如果请求失败，则没有互联网连接
-        messagebox.showwarning("网络状态", "未检测到互联网连接，请检查你的网络设置。")
-        root.destroy()
-
 def save_setting():
     config['SETTING'] = {
         "signed_percent" : signed_percent.get()
     }
     with open(filename, 'w') as configfile:
         config.write(configfile)
+
+
+def read_setting(filename):
+    if not os.path.exists(filename):
+        config['SETTING'] = {'signed_percent': '50'}
+        with open(filename, 'w') as configfile:
+            config.write(configfile)
+
+    config.read(filename)
 
 if __name__ == '__main__':
     host = "https://www.duifene.com"
@@ -363,13 +351,10 @@ if __name__ == '__main__':
     urllib3.disable_warnings()
     x = requests.Session()
     x.headers['User-Agent'] = UA
-    # x.proxies = {"https": "127.0.0.1:8888"}
     x.verify = False
-    filename = 'duifenyi.ini'
     config = configparser.ConfigParser()
-
-    init()
-
+    filename = 'duifenyi.ini'
+    read_setting(filename)
     # 创建UI
     root = tk.Tk()
     # 标题
@@ -396,16 +381,8 @@ if __name__ == '__main__':
     link_entry = tk.Entry(tab_frame1, font=('宋体', 12))
     link_entry.pack(pady=5, padx=10)
     tk.Button(tab_frame1, text="登录", command=login_link, font=('宋体', 14)).pack(pady=5)
-
-    # # tab选项卡中的内容_密码登录
+    tk.Button(tab_frame1, text="自动登录", command=autoLogin, font=('宋体', 14)).pack(pady=5)
     tab_frame2 = tk.Frame(tab_control)
-    # tk.Label(tab_frame2, text="不支持二维码签到", font=('宋体', 10)).pack(padx=5)
-    # tk.Label(tab_frame2, text="账号", font=('宋体', 14)).pack(padx=10)
-    # username = tk.Entry(tab_frame2, font=('宋体', 12))
-    # username.pack(padx=10)
-    # tk.Label(tab_frame2, text="密码", font=('宋体', 14)).pack(padx=10)
-    # password = tk.Entry(tab_frame2, show="*", font=('宋体', 12))
-    # password.pack(padx=10)
     tk.Label(tab_frame2, text="已签到人数达到总人数的X%时签到", font=('宋体', 10)).pack(pady=5)
     signed_percent = tk.Entry(tab_frame2, font=('宋体', 12), width=5)
     signed_percent.insert(0, config['SETTING']['signed_percent'])
