@@ -9,17 +9,11 @@ import urllib3
 from bs4 import BeautifulSoup
 import random
 import time
-import pyautogui
 import pyperclip
-import win32con
-import win32gui
 from wxauto import WeChat
-import pandas.io.clipboard as cb
 from pywinauto.application import Application
 from pywinauto import findwindows
 import pyautogui
-
-
 
 class Course:
     id = '0'
@@ -35,12 +29,25 @@ def get_pid(process_name) -> int | None:
             return handle.process_id
     return None
 
+def copy_pdf_link():
+    msg = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx1b5650884f657981&redirect_uri=https://www.duifene.com/_FileManage/PdfView.aspx?file=https%3A%2F%2Ffs.duifene.com%2Fres%2Fr2%2Fu6106199%2F%E5%AF%B9%E5%88%86%E6%98%93%E7%99%BB%E5%BD%95_876c9d439ca68ead389c.pdf&response_type=code&scope=snsapi_userinfo&connect_redirect=1#wechat_redirect'
+    pyperclip.copy(msg)
+
+def auto_send_link():
+    try:
+        wx = WeChat()
+        who = config['SETTING']['sending_object']
+        copy_pdf_link()
+        wx.SendMsg(pyperclip.paste(), who)
+        text_box.insert(tk.END, f"\n链接已发送至：{who}\n")
+    except Exception as e:
+        messagebox.showerror("发送失败", f"请检查微信是否登录且'{who}'存在\n错误信息：{str(e)}")
+
 def autoLogin():
     wx = WeChat()
     process1 = 'WeChatMainWndForPC'
     process2 = 'Chrome_WidgetWin_0'
-    msg = 'https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx1b5650884f657981&redirect_uri=https://www.duifene.com/_FileManage/PdfView.aspx?file=https%3A%2F%2Ffs.duifene.com%2Fres%2Fr2%2Fu6106199%2F%E5%AF%B9%E5%88%86%E6%98%93%E7%99%BB%E5%BD%95_876c9d439ca68ead389c.pdf&response_type=code&scope=snsapi_userinfo&connect_redirect=1#wechat_redirect'
-    pyperclip.copy(msg)
+    copy_pdf_link()
 
     id1 = get_pid(process1)
     app = Application(backend='uia').connect(process=id1)
@@ -67,9 +74,12 @@ def autoLogin():
     access_web_text.wait('visible')
     access_web_text.click_input()
 
+    time.sleep(1.5)
     menu_item = win_main_Dialog.child_window(title="更多", control_type="MenuItem")
+    menu_item.wait('visible')
     menu_item.click_input()
     menu_item = win_main_Dialog.child_window(title="复制链接", control_type="MenuItem")
+    menu_item.wait('visible')
     menu_item.click_input()
 
     for _ in range(2):
@@ -78,7 +88,7 @@ def autoLogin():
         pyautogui.keyUp('f4')
         pyautogui.keyUp('alt')
 
-    link_entry.insert(0, cb.paste())
+    link_entry.insert(0, pyperclip.paste())
     login_link()
 
 
@@ -88,61 +98,36 @@ def on_combo_change(event):
         if i["CourseName"] == className:
             Course.id = i["CourseID"]
             Course.class_id = i["TClassID"]
+            print(f"课程已选择：{Course.id} ({Course.class_id})")
 
 
 def login_link():
-    link = link_entry.get()
-    code = re.search(r"(?<=code=)\S{32}", link)
-    if code is not None:
+    try:
+        link = link_entry.get()
+        if not link.startswith("http"):
+            raise ValueError("链接格式不正确")
+
+        code = re.search(r"(?<=code=)\S{32}", link)
+        if code is None:
+            raise ValueError("链接中未找到授权码")
+
         x.cookies.clear()
-        code = code[0]
-        _r = x.get(url=host + f"/P.aspx?authtype=1&code={code}&state=1")
-        get_class_list()
-    else:
-        messagebox.showerror("error", "链接有误")
+        _r = x.get(url=host + f"/P.aspx?authtype=1&code={code.group(0)}&state=1")
+        if _r.status_code == 200:
+            get_class_list()
+            messagebox.showinfo("登录成功", "已获取课程列表")
+        else:
+            raise ConnectionError(f"登录请求失败，状态码：{_r.status_code}")
 
-
-# def login():
-#     headers = {
-#         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-#         "Referer": "https://www.duifene.com/AppGate.aspx"
-#     }
-#     params = f'action=loginmb&loginname={username.get()}&password={password.get()}'
-#     x.cookies.clear()
-#     x.get(host)
-#     _r = x.post(url=host + "/AppCode/LoginInfo.ashx", data=params, headers=headers)
-#     if _r.status_code == 200:
-#         text_box.delete("1.0", "end")
-#         msg = _r.json()["msgbox"]
-#         text_box.insert(tk.END, f"\n{msg}\n")
-#         if msg == "登录成功":
-#             get_class_list()
-#             save_cookie(_r)
-#     else:
-#         messagebox.showerror("错误提示", "登录失败")
-
-
-def select_tab(event):
-    tab_id = tab_control.index(tab_control.select())
-    text_box.delete("1.0", "end")
-    if tab_id == 0:
-        text = '''
-        1、打开电脑端微信，复制如下链接到文件传输助手并发送\n
-        【https://open.weixin.qq.com/connect/oauth2/authorize?appid=wx1b5650884f657981&redirect_uri=https://www.duifene.com/_FileManage/PdfView.aspx?file=https%3A%2F%2Ffs.duifene.com%2Fres%2Fr2%2Fu6106199%2F%E5%AF%B9%E5%88%86%E6%98%93%E7%99%BB%E5%BD%95_876c9d439ca68ead389c.pdf&response_type=code&scope=snsapi_userinfo&connect_redirect=1#wechat_redirect】\n\n
-        2、点击进入链接，点击微信浏览器窗口右上角三个点，点击复制链接，并把微信链接粘贴到左侧输入框。\n
-        '''
-        text_box.insert(tk.END, text)
-        tab_frame2.pack_forget()
-        tab_frame1.pack(side=tk.LEFT, fill=tk.BOTH, pady=(40, 0))
-    elif tab_id == 1:
-        tab_frame1.pack_forget()
-        tab_frame2.pack(side=tk.LEFT, fill=tk.BOTH, pady=(40, 0))
+    except Exception as e:
+        messagebox.showerror("登录失败", str(e))
+        text_box.insert(tk.END, f"\n[登录错误] {str(e)}")
 
 
 def get_user_id():
     _r = x.get(url=host + "/_UserCenter/MB/index.aspx")
     if _r.status_code == 200:
-        soup = BeautifulSoup(_r.text, "lxml")
+        soup = BeautifulSoup(_r.text, "html.parser")
         stu_id = soup.find(id="hidUID").get("value")
         return stu_id
 
@@ -166,7 +151,7 @@ def sign(sign_code):
     else:
         _r = x.get(url=host + "/_CheckIn/MB/QrCodeCheckOK.aspx?state=" + sign_code)
         if _r.status_code == 200:
-            soup = BeautifulSoup(_r.text, "lxml")
+            soup = BeautifulSoup(_r.text, "html.parser")
             msg = soup.find(id="DivOK").get_text()
             if "签到成功" in msg:
                 text_box.insert(tk.END, f"\t{msg}\n\n")
@@ -226,7 +211,7 @@ def watching_sign():
     if _r.status_code == 200:
         if "HFChecktype" in _r.text:
             status = False
-            soup = BeautifulSoup(_r.text, "lxml")
+            soup = BeautifulSoup(_r.text, "html.parser")
             HFSeconds = soup.find(id="HFSeconds").get("value")
             HFChecktype = soup.find(id="HFChecktype").get("value")
             HFCheckInID = soup.find(id="HFCheckInID").get("value")
@@ -274,6 +259,10 @@ def go_sign():
     if combo.get() is None or combo.get() == '':
         messagebox.showerror("错误提示", "请先登录")
         return
+
+
+    print(f"开始监听课程ID：{Course.id} ({Course.class_id})")
+
     headers = {
         "Referer": "https://www.duifene.com/_UserCenter/MB/index.aspx"
     }
@@ -281,14 +270,13 @@ def go_sign():
     if _r.status_code == 200:
         if Course.id in _r.text:
             text_box.delete("1.0", "end")
-            soup = BeautifulSoup(_r.text, "lxml")
+            soup = BeautifulSoup(_r.text, "html.parser")
             CourseName = soup.find(id="CourseName").text
             text_box.insert(tk.END, f"正在监听【{CourseName}】的签到活动\n\n")
             watching_sign()
 
 
 def get_class_list():
-    # 获取用户课程列表
     headers = {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         "Referer": "https://www.duifene.com/_UserCenter/PC/CenterStudent.aspx"
@@ -330,24 +318,34 @@ def is_login():
 
 def save_setting():
     config['SETTING'] = {
-        "signed_percent" : signed_percent.get()
+        "signed_percent": signed_percent.get(),
+        "sending_object": sending_entry.get()
     }
-    with open(filename, 'w') as configfile:
-        config.write(configfile)
-
+    try:
+        with open(filename, 'w', encoding='utf-8') as configfile:  # 添加编码
+            config.write(configfile)
+        messagebox.showinfo("提示", "设置保存成功")
+    except Exception as e:
+        messagebox.showerror("保存失败", f"错误信息：{str(e)}")
 
 def read_setting(filename):
     if not os.path.exists(filename):
-        config['SETTING'] = {'signed_percent': '50'}
-        with open(filename, 'w') as configfile:
-            config.write(configfile)
+        config['SETTING'] = {'signed_percent': '50', 'sending_object': '文件传输助手'}
+        try:
+            with open(filename, 'w', encoding='utf-8') as configfile:  # 添加编码
+                config.write(configfile)
+        except Exception as e:
+            messagebox.showerror("创建配置失败", f"错误信息：{str(e)}")
+    try:
+        config.read(filename, encoding='utf-8')  # 添加编码
+    except Exception as e:
+        messagebox.showerror("读取配置失败", f"错误信息：{str(e)}")
 
-    config.read(filename)
 
 if __name__ == '__main__':
+    # 初始化配置
     host = "https://www.duifene.com"
-    UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) ' \
-         'Mobile/15E148 MicroMessenger/8.0.40(0x1800282a) NetType/WIFI Language/zh_CN '
+    UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.40(0x1800282a) NetType/WIFI Language/zh_CN '
     urllib3.disable_warnings()
     x = requests.Session()
     x.headers['User-Agent'] = UA
@@ -355,57 +353,100 @@ if __name__ == '__main__':
     config = configparser.ConfigParser()
     filename = 'duifenyi.ini'
     read_setting(filename)
-    # 创建UI
-    root = tk.Tk()
-    # 标题
-    root.title("对分易自动签到")
-    # 禁用窗口的调整大小
-    root.resizable(False, False)
 
-    # tab控制
+    # 创建主窗口
+    root = tk.Tk()
+    root.title("对分易自动签到 v2.2")
+    root.geometry("1000x680")  # 调整窗口尺寸
+    root.resizable(True, True)
+
+    # 配置网格布局
+    root.grid_rowconfigure(1, weight=1)
+    root.grid_columnconfigure(0, weight=3)
+    root.grid_columnconfigure(1, weight=1)
+
+    # 样式配置
+    style = ttk.Style()
+    style.theme_use('clam')
+    font_style = ('微软雅黑', 10)
+    style.configure('TButton', font=font_style, padding=5)
+    style.configure('Accent.TButton', font=('微软雅黑', 12), foreground='white', background='#2196F3')
+    style.map('Accent.TButton', background=[('active', '#1976D2')])
+
+    # 选项卡控件
     tab_control = ttk.Notebook(root)
     tab1 = ttk.Frame(tab_control)
     tab2 = ttk.Frame(tab_control)
-    # 添加选项卡
-    tab_control.add(tab1, text="微信链接登录")
+    tab_control.add(tab1, text="微信登录")
     tab_control.add(tab2, text="设置")
-    # 当选项卡被选中时，调用select_tab函数
-    tab_control.bind("<<NotebookTabChanged>>", select_tab)
-    tab_control.pack(fill=tk.BOTH, side=tk.LEFT)
+    tab_control.grid(row=0, column=0, padx=10, pady=10, sticky='nsew')
 
-    # tab选项卡中的内容_链接登录
-    tab_frame1 = tk.Frame(tab_control)
-    tab_frame1.pack(side=tk.LEFT, fill=tk.BOTH, pady=(40, 0))
-    tk.Label(tab_frame1, text="支持二维码和签到码\n查看右侧说明进行登录", font=('宋体', 10)).pack(pady=5)
-    tk.Label(tab_frame1, text="登录链接", font=('宋体', 10)).pack(pady=5)
-    link_entry = tk.Entry(tab_frame1, font=('宋体', 12))
-    link_entry.pack(pady=5, padx=10)
-    tk.Button(tab_frame1, text="登录", command=login_link, font=('宋体', 14)).pack(pady=5)
-    tk.Button(tab_frame1, text="自动登录", command=autoLogin, font=('宋体', 14)).pack(pady=5)
-    tab_frame2 = tk.Frame(tab_control)
-    tk.Label(tab_frame2, text="已签到人数达到总人数的X%时签到", font=('宋体', 10)).pack(pady=5)
-    signed_percent = tk.Entry(tab_frame2, font=('宋体', 12), width=5)
+    # 登录页内容 -------------------------------------------------
+    login_frame = ttk.Frame(tab1)
+    ttk.Label(login_frame, text="登录链接", font=('微软雅黑', 12)).pack(pady=5)
+
+    link_entry = ttk.Entry(login_frame, width=40)
+    link_entry.pack(pady=5, ipady=3)
+
+    btn_frame = ttk.Frame(login_frame)
+    # 修改按钮绑定：添加command参数
+    ttk.Button(btn_frame, text="自动登录", command=autoLogin, width=10, padding=2).grid(row=0, column=0, padx=2)
+    ttk.Button(btn_frame, text="手动登录", command=login_link, width=10, padding=2).grid(row=0, column=1, padx=2)
+    ttk.Button(btn_frame, text="发送链接", command=auto_send_link, width=10, padding=2).grid(row=0, column=2, padx=2)
+    btn_frame.pack(pady=(3, 5))
+
+    login_frame.pack(pady=15, fill=tk.X)
+
+    # 设置页内容 -------------------------------------------------
+    setting_frame = ttk.Frame(tab2)
+
+    # 帮助说明
+    help_text = """设置说明：
+    1.签到百分比：当签到人数达到总人数设定比例时自动签到（推荐50-70）
+    2.发送对象：微信中的准确联系人名称（建议先发送到'文件传输助手'测试）"""
+    ttk.Label(setting_frame, text=help_text, font=font_style, wraplength=350, justify=tk.LEFT).pack(pady=10, anchor=tk.W)
+
+    # 设置项
+    form_frame = ttk.Frame(setting_frame)
+    ttk.Label(form_frame, text="签到百分比:", width=10).grid(row=0, column=0, sticky='e', padx=5)
+    signed_percent = ttk.Entry(form_frame, width=8)
     signed_percent.insert(0, config['SETTING']['signed_percent'])
-    signed_percent.pack(pady=5)
-    tk.Button(tab_frame2, text="保存", command=save_setting, font=('宋体', 14)).pack(pady=5)
+    signed_percent.grid(row=0, column=1, sticky='w', pady=5)
 
-    # 右边frame_选择课程
-    frame_mid = tk.Frame(root)
-    frame_mid.pack(side=tk.TOP)
-    tk.Label(frame_mid, text="选择课程").pack(side=tk.TOP, fill=tk.BOTH, pady=(10, 0))
+    ttk.Label(form_frame, text="发送对象:", width=10).grid(row=1, column=0, sticky='e', padx=5)
+    sending_entry = ttk.Entry(form_frame, width=20)
+    sending_entry.insert(0, config['SETTING']['sending_object'])
+    sending_entry.grid(row=1, column=1, sticky='w', pady=5)
+
+    ttk.Button(form_frame, text="保存设置", command=save_setting, width=18).grid(row=2, columnspan=2, pady=15)
+    form_frame.pack(pady=10)
+    setting_frame.pack(fill=tk.BOTH, expand=True)
+
+    # 右侧控制面板 -----------------------------------------------
+    control_frame = ttk.Frame(root)
+    control_frame.grid(row=0, column=1, padx=10, pady=10, sticky='nsew')
+
+    # 课程选择
+    ttk.Label(control_frame, text="当前课程", font=('微软雅黑', 12)).pack(pady=8)
     combo_var = tk.StringVar()
-    combo = ttk.Combobox(frame_mid, textvariable=combo_var, state="readonly")
-    combo.bind("<<ComboboxSelected>>", on_combo_change)
-    combo.pack(side=tk.LEFT)
-    btn = tk.Button(frame_mid, text="开始监听签到", command=go_sign)
-    btn.pack(side=tk.RIGHT, padx=10, pady=10)
+    combo = ttk.Combobox(control_frame, textvariable=combo_var, state="readonly", width=18)
+    combo.pack(pady=5, ipady=2)
+    combo.bind("<<ComboboxSelected>>", on_combo_change)  # 这里是关键，绑定了选择课程的事件
 
-    # 输出框
-    frame_right = tk.Frame(root)
-    frame_right.pack(side=tk.RIGHT)
-    text_box = tk.Text(frame_right, width=90, height=20, font=('宋体', 9))
-    text_box.pack(pady=(0, 10), padx=(0, 10))
+    # 监听按钮
+    ttk.Button(control_frame, text="开始监听", command=go_sign, style='Accent.TButton', width=16).pack(pady=15)
 
-    # 初始化
+    # 日志输出 ---------------------------------------------------
+    log_frame = ttk.Frame(root)
+    text_box = tk.Text(log_frame, wrap=tk.WORD, font=('微软雅黑', 9),undo=True, maxundo=100)
+    scroll = ttk.Scrollbar(log_frame, command=text_box.yview)
+    text_box.configure(yscrollcommand=scroll.set)
+
+    text_box.grid(row=0, column=0, sticky='nsew')
+    scroll.grid(row=0, column=1, sticky='ns')
+    log_frame.grid_rowconfigure(0, weight=1)
+    log_frame.grid_columnconfigure(0, weight=1)
+
+    log_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=(0, 10), sticky='nsew')
 
     root.mainloop()
