@@ -1,19 +1,22 @@
 import configparser
 import os.path
+import random
 import re
+import time
 from datetime import datetime
-import tkinter as tk
-from tkinter import messagebox, ttk
+
+import pyautogui
+import pyperclip
 import requests
 import urllib3
 from bs4 import BeautifulSoup
-import random
-import time
-import pyperclip
-from wxauto import WeChat
-from pywinauto.application import Application
 from pywinauto import findwindows
-import pyautogui
+from pywinauto.application import Application
+from wxauto import WeChat
+
+import tkinter as tk
+from tkinter import messagebox, ttk
+
 
 class Course:
     id = '0'
@@ -69,12 +72,13 @@ def autoLogin():
     id2 = get_pid(process2)
     app = Application(backend='uia').connect(process=id2)
     win_main_Dialog = app.window(class_name=process2)
-    # win_main_Dialog.print_control_identifiers(depth=None, filename=None)
     access_web_text = win_main_Dialog.child_window(title="访问网页", control_type="Text")
     access_web_text.wait('visible')
     access_web_text.click_input()
 
-    time.sleep(1.5)
+    tmp_text = win_main_Dialog.child_window(title="PDF文件预览", control_type="TabItem")
+    tmp_text.wait('visible')
+    # win_main_Dialog.print_control_identifiers(depth=None, filename=None)
     menu_item = win_main_Dialog.child_window(title="更多", control_type="MenuItem")
     menu_item.wait('visible')
     menu_item.click_input()
@@ -115,7 +119,6 @@ def login_link():
         _r = x.get(url=host + f"/P.aspx?authtype=1&code={code.group(0)}&state=1")
         if _r.status_code == 200:
             get_class_list()
-            messagebox.showinfo("登录成功", "已获取课程列表")
         else:
             raise ConnectionError(f"登录请求失败，状态码：{_r.status_code}")
 
@@ -404,7 +407,7 @@ if __name__ == '__main__':
     help_text = """设置说明：
     1.签到百分比：当签到人数达到总人数设定比例时自动签到（推荐50-70）
     2.发送对象：微信中的准确联系人名称（建议先发送到'文件传输助手'测试）"""
-    ttk.Label(setting_frame, text=help_text, font=font_style, wraplength=350, justify=tk.LEFT).pack(pady=10, anchor=tk.W)
+    ttk.Label(setting_frame, text=help_text, font=font_style, justify=tk.LEFT).pack(pady=10, anchor=tk.W)
 
     # 设置项
     form_frame = ttk.Frame(setting_frame)

@@ -1,3 +1,6 @@
 .venv/
 duifenyi.ini
 .idea/
+build/
+dist/
+main.spec
