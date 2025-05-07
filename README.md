@@ -8,4 +8,4 @@ https://www.duifene.com/
 支持二维码和签到码签到
 ![1715853160414](https://github.com/liuzhijie443/duifene_auto_sign/assets/25584923/12fce0f7-f0ac-4920-8315-b39efc1ec1ae)
 
-特别感谢[liuzhijie443/duifene_auto_sign](https://github.com/liuzhijie443/duifene_autoliuzhijie443)
+FORK FROM [liuzhijie443/duifene_auto_sign](https://github.com/liuzhijie443/duifene_autoliuzhijie443)
