@@ -8,4 +8,4 @@ https://www.duifene.com/
 支持二维码和签到码签到
 ![e54f889b4f798b44633950c030d3dec.png](https://s2.loli.net/2025/05/21/aFUbYeWgwDKqo1f.png)
 
-FORK FROM [liuzhijie443/duifene_auto_sign](https://github.com/liuzhijie443/duifene_autoliuzhijie443)
+FORK FROM [liuzhijie443/duifene_auto_sign](https://github.com/liuzhijie443/duifene_auto)
