@@ -6,6 +6,6 @@
 https://www.duifene.com/
 ## 登录后监控课程签到
 支持二维码和签到码签到
-![1715853160414](https://github.com/liuzhijie443/duifene_auto_sign/assets/25584923/12fce0f7-f0ac-4920-8315-b39efc1ec1ae)
+![e54f889b4f798b44633950c030d3dec.png](https://s2.loli.net/2025/05/21/aFUbYeWgwDKqo1f.png)
 
 FORK FROM [liuzhijie443/duifene_auto_sign](https://github.com/liuzhijie443/duifene_autoliuzhijie443)
